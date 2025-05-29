@@ -8,9 +8,13 @@ from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 import os
 from dotenv import load_dotenv
-import asyncio
-import json
 from datetime import datetime
+
+# Step 0: Setup OpenAPI key
+
+load_dotenv()
+openai_api_key = os.getenv("OPENAI_API_KEY") 
+openai.api_key = openai_api_key
 
 # 1. Determine relevant BBC Sport URLs using LLM
 async def determine_relevant_urls(user_query: str, openai_api_key: str) -> list[str]:
@@ -148,11 +152,3 @@ async def main() -> None:
                 "BBC Sport Section": article["source"],
                 "Scraped At (Readable)": article["scraped_at_readable"]
             })
-
-        # Optional JSON output
-        if output_to_file:
-            with open('output.json', 'w') as f:
-                json.dump(extracted_headlines, f, indent=2)
-            Actor.log.info("Output saved to output.json")
-
-        Actor.log.info(f"Scraped and stored {len(extracted_headlines)} articles.")
