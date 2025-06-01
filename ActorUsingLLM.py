@@ -52,9 +52,9 @@ async def determine_relevant_urls(user_query: str, openai_api_key: str) -> list[
     try:
         urls = await chain.ainvoke({"user_query": user_query})
         urls = urls.strip()
-        if "\\n" in urls:
+        if "\n" in urls:
             # Handle multiple URLs returned by LLM
-            url_list = [url.strip() for url in urls.split("\\n") if url.strip().startswith("<https://www.bbc.com/sport/>") and url.strip() != "<https://www.bbc.com/sport>"]
+            url_list = [url.strip() for url in urls.split("\n") if url.strip().startswith("https://www.bbc.com/sport/") and url.strip() != "https://www.bbc.com/sport"]
             if not url_list:
                 Actor.log.warning("No specific sport URLs returned by LLM.")
                 return []
@@ -64,10 +64,10 @@ async def determine_relevant_urls(user_query: str, openai_api_key: str) -> list[
             sport_name = urls.lower()
             if sport_name == "general sports":
                 Actor.log.info("LLM selected general sports.")
-                return ["<https://www.bbc.com/sport>"]
+                return ["https://www.bbc.com/sport"]
             # If it's a relative URL like "/sport/cricket", construct the full URL
             if not sport_name.startswith("https://"):
-                return [f"<https://www.bbc.com/sport/{sport_name}>"]
+                return [f"https://www.bbc.com/sport/{sport_name}"]
             # If it's already a full URL (starts with https://), return it as is
             return [sport_name]
     except Exception as e:
