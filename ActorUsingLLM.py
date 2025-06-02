@@ -120,7 +120,7 @@ async def main() -> None:
     async with Actor:
         actor_input = await Actor.get_input() or {}
         user_query = actor_input.get('user_query', 'latest sports news')
-        openai_api_key = (await Actor.get_value('OPENAI_API_KEY') or actor_input.get('openai_api_key', '')).strip()
+        openai_api_key = actor_input.get('openai_api_key', '').strip()
         output_to_file = actor_input.get('output_to_file', False)
 
         if not openai_api_key:
