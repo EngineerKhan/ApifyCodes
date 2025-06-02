@@ -9,6 +9,8 @@ from langchain_core.output_parsers import StrOutputParser
 import os
 from dotenv import load_dotenv
 from datetime import datetime
+import openai
+import asyncio
 
 # Step 0: Setup OpenAPI key
 
