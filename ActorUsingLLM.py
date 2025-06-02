@@ -12,7 +12,7 @@ from datetime import datetime
 import openai
 import asyncio
 
-# Step 0: Setup OpenAPI key
+# Step 0: Setup OpenAPI key (OPTIONAL - not required with Apify Actor platform)
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY") 
