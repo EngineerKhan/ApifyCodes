@@ -76,7 +76,7 @@ async def determine_relevant_urls(user_query: str, openai_api_key: str) -> list[
         return []
 
 
- async def scrape_sport_headlines_with_url(url: str, client: AsyncClient) -> list[dict]:
+async def scrape_sport_headlines_with_url(url: str, client: AsyncClient) -> list[dict]:
     """Scrape sport news headlines and URLs from a given BBC Sport URL, targeting the specified HTML structure."""
     try:
         Actor.log.info(f"Scraping URL: {url}")
@@ -97,7 +97,7 @@ async def determine_relevant_urls(user_query: str, openai_api_key: str) -> list[
             return headlines_data
 
         # Fallback to generic method
-         for link in soup.find_all('a', href=True):
+        for link in soup.find_all('a', href=True):
             if link['href'].startswith('/sport/') and link.find('span'):
                 article_url = urljoin(url, link['href'])
                 seen_urls.add(article_url)
