@@ -1,0 +1,6 @@
+apify < 3.0
+beautifulsoup4[lxml]
+httpx
+types-beautifulsoup4
+langchain
+langchain-openai
