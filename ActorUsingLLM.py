@@ -6,17 +6,14 @@ from httpx import AsyncClient
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-import os
-from dotenv import load_dotenv
-from datetime import datetime
-import openai
+# import os
+# from dotenv import load_dotenv
 import asyncio
+import json
+from datetime import datetime
 
-# Step 0: Setup OpenAPI key (OPTIONAL - not required with Apify Actor platform)
-
-load_dotenv()
-openai_api_key = os.getenv("OPENAI_API_KEY") 
-openai.api_key = openai_api_key
+# Load environment variables from .env file
+# load_dotenv()
 
 # 1. Determine relevant BBC Sport URLs using LLM
 async def determine_relevant_urls(user_query: str, openai_api_key: str) -> list[str]:
@@ -33,15 +30,15 @@ async def determine_relevant_urls(user_query: str, openai_api_key: str) -> list[
     Query: "{user_query}"
 
     Choose from these URLs (select ALL that apply, separated by new lines):
-    - cricket: <https://www.bbc.com/sport/cricket>
-    - football: <https://www.bbc.com/sport/football>
-    - tennis: <https://www.bbc.com/sport/tennis>
-    - formula 1: <https://www.bbc.com/sport/formula1>
-    - golf: <https://www.bbc.com/sport/golf>
-    - rugby: <https://www.bbc.com/sport/rugby-union>
-    - Athletics: <https://www.bbc.com/sport/athletics>
-    - cycling: <https://www.bbc.com/sport/cycling>
-    - general sports: <https://www.bbc.com/sport>
+    - cricket: https://www.bbc.com/sport/cricket
+    - football: https://www.bbc.com/sport/football
+    - tennis: https://www.bbc.com/sport/tennis
+    - formula 1: https://www.bbc.com/sport/formula1
+    - golf: https://www.bbc.com/sport/golf
+    - rugby: https://www.bbc.com/sport/rugby-union
+    - Athletics: https://www.bbc.com/sport/athletics
+    - cycling: https://www.bbc.com/sport/cycling
+    - general sports: https://www.bbc.com/sport
 
     Respond with only the URLs, one per line. If you choose multiple, separate them with new lines.
     """
@@ -50,10 +47,13 @@ async def determine_relevant_urls(user_query: str, openai_api_key: str) -> list[
         input_variables=["user_query"],
         template=template
     )
+
     chain = prompt | llm | StrOutputParser()
+
     try:
         urls = await chain.ainvoke({"user_query": user_query})
         urls = urls.strip()
+
         if "\n" in urls:
             # Handle multiple URLs returned by LLM
             url_list = [url.strip() for url in urls.split("\n") if url.strip().startswith("https://www.bbc.com/sport/") and url.strip() != "https://www.bbc.com/sport"]
@@ -70,14 +70,15 @@ async def determine_relevant_urls(user_query: str, openai_api_key: str) -> list[
             # If it's a relative URL like "/sport/cricket", construct the full URL
             if not sport_name.startswith("https://"):
                 return [f"https://www.bbc.com/sport/{sport_name}"]
+
             # If it's already a full URL (starts with https://), return it as is
             return [sport_name]
+
     except Exception as e:
         Actor.log.error(f"Error determining URLs: {e}")
         Actor.log.warning("LLM failed to provide URLs, skipping scraping.")
         return []
-
-
+        
 async def scrape_sport_headlines_with_url(url: str, client: AsyncClient) -> list[dict]:
     """Scrape sport news headlines and URLs from a given BBC Sport URL, targeting the specified HTML structure."""
     try:
@@ -85,11 +86,13 @@ async def scrape_sport_headlines_with_url(url: str, client: AsyncClient) -> list
         response = await client.get(url, follow_redirects=True)
         soup = BeautifulSoup(response.content, 'html.parser')
         headlines_data = []
-        seen_urls = set()
-        promo_links = soup.find_all('a', class_='ssrcss-sxweo-PromoLink exn3ah95', href=True)
+        seen_urls = set()  
+        # promo_links = soup.find_all('a', class_='ssrcss-sxweo-PromoLink exn3ah95', href=True)
+        promo_links = soup.find_all('a', class_=lambda x: x and 'PromoLink' in x, href=True)
         if promo_links:
             for link_tag in promo_links:
-                headline_paragraph = link_tag.find('p', class_='ssrcss-1b1mki6-PromoHeadline exn3ah910')
+                headline_paragraph = link_tag.find('p', class_=lambda x: x and 'PromoHeadline' in x)
+                # headline_paragraph = link_tag.find('p', class_='ssrcss-1b1mki6-PromoHeadline exn3ah910')
                 if headline_paragraph:
                     headline = headline_paragraph.find('span').get_text(strip=True) if headline_paragraph.find('span') else headline_paragraph.get_text(strip=True)
                     article_url = urljoin(url, link_tag['href'])
@@ -97,8 +100,8 @@ async def scrape_sport_headlines_with_url(url: str, client: AsyncClient) -> list
                         seen_urls.add(article_url)
                         headlines_data.append({'headline': headline, 'url': article_url, 'source': url ,'scraped_at_readable': datetime.utcnow().strftime('%d %b %Y, %H:%M UTC')})
             return headlines_data
-
-        # Fallback to generic method
+        
+        # Fallback to generic method if no promos found
         for link in soup.find_all('a', href=True):
             if link['href'].startswith('/sport/') and link.find('span'):
                 article_url = urljoin(url, link['href'])
@@ -127,7 +130,7 @@ async def main() -> None:
             Actor.log.error("OPENAI_API_KEY is required.")
             await Actor.exit(1)
 
-        # use LLM to get relevant URLs
+        # Always use LLM to get relevant URLs
         Actor.log.info(f"Using LLM to determine URLs from query: '{user_query}'")
         urls = await determine_relevant_urls(user_query, openai_api_key)
 
@@ -154,3 +157,11 @@ async def main() -> None:
                 "BBC Sport Section": article["source"],
                 "Scraped At (Readable)": article["scraped_at_readable"]
             })
+
+        # Optional JSON output
+        if output_to_file:
+            with open('output.json', 'w') as f:
+                json.dump(extracted_headlines, f, indent=2)
+            Actor.log.info("Output saved to output.json")
+
+        Actor.log.info(f"Scraped and stored {len(extracted_headlines)} articles.")
